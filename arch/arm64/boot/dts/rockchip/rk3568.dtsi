@@ -1229,33 +1229,18 @@
 	};
 
 	gpu: gpu@fde60000 {
-		compatible = "arm,mali-bifrost";
+		compatible = "rockchip,rk3568-mali", "arm,mali-bifrost";
 		reg = <0x0 0xfde60000 0x0 0x4000>;
-
-		interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
+		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "GPU", "MMU", "JOB";
-
-		upthreshold = <40>;
-		downdifferential = <10>;
-
+			     <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "job", "mmu", "gpu";
 		clocks = <&scmi_clk 1>, <&cru CLK_GPU>;
-		clock-names = "clk_mali", "clk_gpu";
-		power-domains = <&power RK3568_PD_GPU>;
+		clock-names = "gpu", "bus";
 		#cooling-cells = <2>;
 		operating-points-v2 = <&gpu_opp_table>;
-
+		power-domains = <&power RK3568_PD_GPU>;
 		status = "disabled";
-		gpu_power_model: power-model {
-			compatible = "simple-power-model";
-			leakage-range= <5 15>;
-			ls = <(-24002) 22823 0>;
-			static-coefficient = <100000>;
-			dynamic-coefficient = <953>;
-			ts = <(-108890) 63610 (-1355) 20>;
-			thermal-zone = "gpu-thermal";
-		};
 	};
 
 	gpu_opp_table: opp-table2 {
