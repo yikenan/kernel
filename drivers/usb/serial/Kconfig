@@ -436,6 +436,10 @@ config USB_SERIAL_MXUPORT
 	  To compile this driver as a module, choose M here: the
 	  module will be called mxuport.
 
+config MOXA_UPORT_11X0
+	tristate "USB Moxa UPort 11x0 Driver"
+	depends on USB_SERIAL=y
+
 config USB_SERIAL_NAVMAN
 	tristate "USB Navman GPS device"
 	help
