@@ -3538,6 +3538,10 @@ static int vop2_extend_clk_switch_pll(struct vop2 *vop2, struct vop2_extend_pll 
 	return 0;
 }
 
+static inline int vop2_extend_clk_get_vp_id(struct vop2_extend_pll *ext_pll)
+{
+	return ffs(ext_pll->vp_mask) - 1;
+}
 
 /*
  * Here are 2 hdmi phy pll can use for video port dclk. The strategies of how to use hdmi phy pll
@@ -3598,13 +3602,13 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 		    (vcstate->output_if & VOP_OUTPUT_IF_HDMI1)) {
 			if (hdmi0_phy_pll->vp_mask) {
 				DRM_ERROR("hdmi0 phy pll is used by vp%d\n",
-					  hdmi0_phy_pll->vp_mask);
+					  vop2_extend_clk_get_vp_id(hdmi0_phy_pll));
 				return -EBUSY;
 			}
 
 			if (hdmi1_phy_pll->vp_mask) {
 				DRM_ERROR("hdmi1 phy pll is used by vp%d\n",
-					  hdmi1_phy_pll->vp_mask);
+					  vop2_extend_clk_get_vp_id(hdmi1_phy_pll));
 				return -EBUSY;
 			}
 
@@ -3621,8 +3625,8 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 				if (hdmi1_phy_pll) {
 					if (hdmi1_phy_pll->vp_mask) {
 						DRM_ERROR("hdmi0: phy pll is used by vp%d:vp%d\n",
-							  hdmi0_phy_pll->vp_mask,
-							  hdmi1_phy_pll->vp_mask);
+							  vop2_extend_clk_get_vp_id(hdmi0_phy_pll),
+							  vop2_extend_clk_get_vp_id(hdmi1_phy_pll));
 						return -EBUSY;
 					}
 
@@ -3630,7 +3634,7 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 								   hdmi1_phy_pll);
 				} else {
 					DRM_ERROR("hdmi0: phy pll is used by vp%d\n",
-						  hdmi0_phy_pll->vp_mask);
+						  vop2_extend_clk_get_vp_id(hdmi0_phy_pll));
 					return -EBUSY;
 				}
 			}
@@ -3647,8 +3651,8 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 				if (hdmi0_phy_pll) {
 					if (hdmi0_phy_pll->vp_mask) {
 						DRM_ERROR("hdmi1: phy pll is used by vp%d:vp%d\n",
-							  hdmi0_phy_pll->vp_mask,
-							  hdmi1_phy_pll->vp_mask);
+							  vop2_extend_clk_get_vp_id(hdmi0_phy_pll),
+							  vop2_extend_clk_get_vp_id(hdmi1_phy_pll));
 						return -EBUSY;
 					}
 
@@ -3656,7 +3660,7 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 								   hdmi0_phy_pll);
 				} else {
 					DRM_ERROR("hdmi1: phy pll is used by vp%d\n",
-						  hdmi1_phy_pll->vp_mask);
+						  vop2_extend_clk_get_vp_id(hdmi1_phy_pll));
 					return -EBUSY;
 				}
 			}
@@ -5403,14 +5407,14 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		request_clock *= 2;
 
-	if (request_clock <= VOP2_MAX_DCLK_RATE) {
-		if (vop2_extend_clk_find_by_name(vop2, "hdmi0_phy_pll") ||
-		    vop2_extend_clk_find_by_name(vop2, "hdmi1_phy_pll"))
-			clock = request_clock;
-		else
-			clock = clk_round_rate(vp->dclk, request_clock * 1000) / 1000;
-	} else {
+	if ((request_clock <= VOP2_MAX_DCLK_RATE) &&
+	    (vop2_extend_clk_find_by_name(vop2, "hdmi0_phy_pll") ||
+	     vop2_extend_clk_find_by_name(vop2, "hdmi1_phy_pll"))) {
 		clock = request_clock;
+	} else {
+		if (request_clock > VOP2_MAX_DCLK_RATE)
+			request_clock = request_clock >> 2;
+		clock = clk_round_rate(vp->dclk, request_clock * 1000) / 1000;
 	}
 
 	/*
@@ -5951,8 +5955,10 @@ static int vop2_calc_if_clk(struct drm_crtc *crtc, const struct vop2_connector_i
 			if (vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420 ||
 			    (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE))
 				v_pixclk = v_pixclk >> 1;
-			clk_set_rate(dclk->hw.clk, v_pixclk);
+		} else {
+			v_pixclk = v_pixclk >> 2;
 		}
+		clk_set_rate(dclk->hw.clk, v_pixclk);
 	}
 
 	if (vcstate->dsc_enable) {
